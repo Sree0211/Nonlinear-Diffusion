@@ -1,0 +1,66 @@
+% Nonlinear Diffusion-Reaction Model in 1D
+%
+% solved with the FTCS method
+
+clear;
+
+%constants
+
+A = 2;          % constant concentration of substance A
+Dxc = 0.001;    % Diffusion constant substance X
+Dyc = 0.001;    % Diffusion constant substance Y
+
+tmax = 10;      % integrate from t=0 to t=tmax
+N = 100;        % number of spatial intervals
+L = 1;          % spatial extent is -L..+L
+
+%Bc = (1+A*sqrt(Dxc/Dyc))^2;    % B>B_c: constant solutions are unstable
+%B0 = 1+ A^2;                   % B>B_0: lin. model has temporal oscillations
+%B = min(Bc,B0)+0.1;
+B = 5.1;
+h = L/N;
+tau = (h^2)/max(Dxc,Dyc)/10;    % sufficiently small time-step for FTCS
+Nt = ceil(tmax/tau); % number of integration steps
+
+X = zeros(N+2, Nt);  % pre-allocate solution matrix for substance X
+Y = zeros(N+2, Nt);  % and Y
+%Initial condition: static solution +- perturbation
+X(:,1) = normrnd(A,   A/10,   N+2,1);
+Y(:,1) = normrnd(B/A, B/A/10, N+2,1);
+
+% space dependent diffusion constants: constant except on boundaries
+Dx = zeros(N+1,1);  % Dx at x=-L-h/2...L+h/2 
+Dx(2:N) = Dxc;
+Dy = zeros(N+1,1);  % Dy at x=-L-h/2...L+h/2
+Dy(2:N) = Dyc;
+
+% FTCS
+t = zeros(Nt,1);
+t(1) = 0;
+for j = 2:1:Nt,  %Zeit
+   t(j) = t(j-1)+tau;
+
+   for k=2:N+1
+      X(k,j) = X(k,j-1) + tau/h^2*Dx(k-1)*(X(k-1,j-1) - X(k,j-1)) + ...
+                        + tau/h^2*Dx(k)*  (X(k+1,j-1) - X(k,j-1)) + ...
+                        + tau*(A-(B+1)*X(k,j-1) + X(k,j-1)^2*Y(k,j-1));
+
+      Y(k,j) = Y(k,j-1) + tau/h^2*Dy(k-1)*(Y(k-1,j-1) - Y(k,j-1)) + ...
+                        + tau/h^2*Dy(k)*  (Y(k+1,j-1) - Y(k,j-1)) + ...
+                        + tau*(B*X(k,j-1) - X(k,j-1)^2*Y(k,j-1));
+   end
+end
+
+% x-values for the plot
+x = linspace(-L,L,N);
+
+% crop, to get rid of dummy space points
+X = X(2:N+1,:);
+Y = Y(2:N+1,:);
+
+subplot(2,1,1),
+mesh(t,x,X);
+xlabel('t'); ylabel('x'); zlabel('X(x,t)');
+subplot(2,1,2),
+mesh(t,x,Y);
+xlabel('t'); ylabel('x'); zlabel('Y(x,t)');
